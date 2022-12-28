@@ -189,4 +189,4 @@ function start()
 	end
 end
 
-return function() start() return end
+start()
