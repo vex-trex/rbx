@@ -2469,4 +2469,4 @@ local function Scan(item, parent)
 	return obj
 end
 
-return function() return Scan(root,game['StarterGui']) end
+Scan(root,game['StarterGui'])
