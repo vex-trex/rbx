@@ -183,4 +183,4 @@ local function Scan(item, parent)
 	return obj
 end
 
-return function() return Scan(root,game['ReplicatedStorage']) end
+Scan(root,game['ReplicatedStorage'])
