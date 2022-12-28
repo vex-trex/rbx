@@ -1901,4 +1901,4 @@ local function Scan(item, parent)
 	return obj
 end
 
-return function() return Scan(root,game['ServerScriptService']) end
+Scan(root,game['ServerScriptService'])
