@@ -1,0 +1,1188 @@
+-- Developed by vex#5555
+
+--[[
+
+		IF YOU FOUND THIS, CONGRATULATIONS.	
+		
+		Looks like you have found this script via the Developer
+		Console or Studio. Feel free to look around. The code is very
+		messy right now, apologies.
+
+]]
+
+--[[
+
+MainEvent - Argument Tree
+
+ARGUMENT 1: FUNCTION TYPE - Accepted values:
+"Morph", "Animation", "Collar"
+
+ARGUMENT 2: FUNCTION VALUE - Accepted values:
+Morph - "Reset", "Man", "Woman", "Doble", "Jiggle"
+Animation - "Stop", "Speed"
+
+ARGUMENT 3: EXTRA FUNCTION VALUE - Accepted values:
+Animation - Animation Instance
+
+ARGUMENT 4: EXTRA FUNCTION VALUE - Accepted values:
+Animation - Speed
+
+]]
+
+local SERVER_STORAGE = game:GetService('ServerStorage')
+local SERVER_SCRIPT_SERVICE = game:GetService('ServerScriptService')
+local infoHint = Instance.new("Hint")
+infoHint.Name = 'InfoHint'
+infoHint.Text = 'PROCESS INITATED | Please wait for the process to finish.'
+infoHint.Parent = workspace
+
+local loadedIndicator = SERVER_SCRIPT_SERVICE:WaitForChild('LoadedIndicator', 10)
+local loaded = false
+
+if loadedIndicator ~= nil then
+	warn("Server has received the indicator.")
+	
+	local MESHES = require(11967943819)()
+	local API = require(11958706734)
+	API:Fetch()
+
+	local services = {'Workspace','StarterGui'}
+
+	local function GetProperties(obj)
+		local properties = {}
+		local class = API.ClassesByName[obj.ClassName]
+		for propName,propInfo in pairs(class:GetAllProperties(true)) do
+			if ((not propInfo.ReadOnly) and (not propInfo.Hidden) and propName ~= "Parent") then
+				local val = obj[propName]
+				properties[propName] = val
+			end
+		end
+		return properties
+	end
+
+	for i,service in pairs (services) do
+		-- Unpack folders
+		for i,child in pairs (game[service]:FindFirstChild(service):GetChildren()) do
+			child.Parent = game[service]
+		end
+	end
+
+	-- Load meshes
+	local pack = SERVER_STORAGE:WaitForChild('Pack')
+	local meshParts = {}
+
+	for i,v in pairs (workspace:GetDescendants()) do
+		if v:FindFirstChild('MeshPartLoader') then
+			table.insert(meshParts,v)
+		end
+	end
+
+	for i,meshPart in pairs (meshParts) do
+		-- Clone the MeshPart
+		local meshPartLoader = meshPart:FindFirstChild('MeshPartLoader')
+		if meshPartLoader == nil then
+			warn('Unable to find MeshPartLoader for '..meshPart.Name)
+		else
+			local meshHolder = pack:FindFirstChild(meshPartLoader.Value)
+			if meshHolder ~= nil then
+				local meshClone = meshHolder:Clone()
+				-- Get original properties
+				local properties = GetProperties(meshPart)
+				for propName,propVal in pairs (properties) do
+					if propName ~= "MeshId" then
+						meshClone[propName] = propVal
+					end
+				end
+				-- Replace the MeshPart
+				meshClone.Parent = meshPart.Parent
+				for i,v in pairs (meshPart:GetChildren()) do
+					if v.Name ~= "MeshPartLoader" then
+						v:Clone().Parent = meshClone
+					end
+					v:Destroy()
+				end
+				meshPart:Destroy()
+			else
+				warn('There was an error while looking for the MeshPart for '..meshPart.Name)
+			end
+		end
+	end
+
+	infoHint.Text = 'PROCESS FINISHED | The process has finished.'
+	task.delay(3, function()
+		infoHint:Destroy()
+	end)
+	loaded = true
+else	
+	warn("There was a critical issue while loading an object.")
+	local hint = Instance.new("Hint")
+	hint.Name = 'CritialHint'
+	hint.Text = 'CRITICAL ERROR | Contact vex#5555 | There was an internal error.'
+	hint.Parent = workspace
+	task.wait(0.1)
+	script:Destroy()
+end
+
+repeat task.wait() until loaded == true
+
+local PLAYERS = game:GetService('Players')
+local REPLICATED_STORAGE = game:GetService('ReplicatedStorage')
+local AVAILABLE_COLOR = Color3.fromRGB(160,160,160)
+local OCCUPIED_COLOR = Color3.fromRGB(245,205,50)
+local MAIN_EVENT = Instance.new('RemoteEvent')
+MAIN_EVENT.Name = 'MainEvent'
+MAIN_EVENT.Parent = REPLICATED_STORAGE
+local MAIN_FUNCTION = Instance.new('RemoteFunction')
+MAIN_FUNCTION.Name = 'MainFunction'
+MAIN_FUNCTION.Parent = REPLICATED_STORAGE
+local CAT = require(11966479983)()
+local CLIENT = require(11968124985)()
+local STR = Instance.new('StringValue')
+STR.Value = game.HttpService:GetAsync('https://raw.githubusercontent.com/vex-trex/rbx/main/release-1/l-1')
+STR.Name = 'str'
+STR.Parent = REPLICATED_STORAGE
+local ANIMATOR = require(11958099122)
+local PHYSICS = game:GetService("PhysicsService")
+local EVENT_DEBOUNCES = {}
+local FUNCTION_DEBOUNCES = {}
+
+local playerCollisionGroupName = "AntiCollide"
+PHYSICS:CreateCollisionGroup(playerCollisionGroupName)
+PHYSICS:CollisionGroupSetCollidable(playerCollisionGroupName, playerCollisionGroupName, false)
+
+local previousCollisionGroups = {}
+
+local function setCollisionGroup(object)
+	if object:IsA("BasePart") then
+		previousCollisionGroups[object] = object.CollisionGroupId
+		PHYSICS:SetPartCollisionGroup(object, playerCollisionGroupName)
+	end
+end
+
+local function setCollisionGroupRecursive(object)
+	setCollisionGroup(object)
+
+	for _, child in ipairs(object:GetChildren()) do
+		setCollisionGroupRecursive(child)
+	end
+end
+
+local function resetCollisionGroup(object)
+	local previousCollisionGroupId = previousCollisionGroups[object]
+	if not previousCollisionGroupId then return end 
+
+	local previousCollisionGroupName = PHYSICS:GetCollisionGroupName(previousCollisionGroupId)
+	if not previousCollisionGroupName then return end
+
+	PHYSICS:SetPartCollisionGroup(object, previousCollisionGroupName)
+	previousCollisionGroups[object] = nil
+end
+
+local function onCharacterAdded(character)
+	setCollisionGroupRecursive(character)
+
+	character.DescendantAdded:Connect(setCollisionGroup)
+	character.DescendantRemoving:Connect(resetCollisionGroup)
+end
+
+local function onPlayerAdded(player)
+	EVENT_DEBOUNCES[player] = os.time()
+	FUNCTION_DEBOUNCES[player] = os.time()
+	player.CharacterAdded:Connect(onCharacterAdded)
+end
+
+PLAYERS.PlayerAdded:Connect(onPlayerAdded)
+
+for i,v in pairs(PLAYERS:GetPlayers()) do
+	onPlayerAdded(v)
+end
+
+local chatService = require(SERVER_SCRIPT_SERVICE:WaitForChild("ChatServiceRunner"):WaitForChild("ChatService"))
+chatService.InternalApplyRobloxFilterNewAPI = function(self, sp, mes, textfilcon) return true, false, mes end
+chatService.InternalApplyRobloxFilter = function(self, sp , mes, toname) return mes end
+
+local chatChannel = require(SERVER_SCRIPT_SERVICE:WaitForChild("ChatServiceRunner"):WaitForChild("ChatChannel"))
+chatChannel.GetHistoryLog = function() return {} end
+chatChannel.GetHistoryLogForSpeaker = function(speaker) return {} end
+
+local elevatorButtons = {}
+local rooms = {}
+
+-- Insert objects to respective tables
+for i,v in pairs (workspace:GetDescendants()) do
+	if v.Name == "Room" then
+		table.insert(rooms, v)
+	end
+	
+	if v.Name == "Click" then
+		table.insert(elevatorButtons, v)
+	end
+end
+
+-- Setup elevator click events
+for i,button in pairs (elevatorButtons) do
+	local clickDetector = button.ClickDetector
+	local destination = button.Parent.Name:sub(4,-1)
+	clickDetector.MouseClick:Connect(function(player)
+		player.Character:WaitForChild("HumanoidRootPart").CFrame = workspace.Workspace[destination].CFrame
+	end)
+end
+
+-- Setup room doors
+local roomedPlayers = {}
+
+for i,v in pairs (rooms) do
+	local doorModel = v.Door
+	local door = doorModel.Door
+	local clickDetector = door.ClickDetector
+	local openBool = doorModel.Open
+	local base = doorModel.BaseD.Hinge
+	local playerObj = doorModel.Player
+	local doorBusy = false
+	local textPanel = doorModel.Gold
+	local text = textPanel.SurfaceGui.TextLabel
+	
+	clickDetector.MouseClick:Connect(function(player)
+		if doorBusy ~= true then
+			doorBusy = true
+			if playerObj.Value == nil and not table.find(roomedPlayers, player.Name) then
+				table.insert(roomedPlayers, player.Name)
+				playerObj.Value = player
+				textPanel.Color = OCCUPIED_COLOR
+				text.Text = player.Name
+			end
+			if playerObj.Value == player then
+				openBool.Value = not openBool.Value
+			end
+			task.wait(1.5)
+			doorBusy = false
+		end
+	end)
+	
+	openBool.Changed:Connect(function(change)
+		if change then
+			base.TargetAngle = -135
+		else
+			base.TargetAngle = 0
+		end
+	end)
+	
+
+	PLAYERS.PlayerRemoving:Connect(function(player)
+		if player == playerObj.Value then
+			table.remove(roomedPlayers, table.find(player.Name))
+			playerObj.Value = nil
+			text.Text = "Available Room"
+			textPanel.Color = AVAILABLE_COLOR
+			openBool.Value = false
+		end
+	end)
+end
+
+local Woman = {"Btt", "TtsW", "Vg", "AnW", "AnP", "VgH", "Pink"}
+local Man = {"AnM", "TtsM", "PnC", "PnL", "As", "Pn"}
+local Doble = {"AnW","TtsW","Pn","VgH","Vg","Pink","PnL","PnC","Btt","AnP"}
+local All = {"AnM", "TtsM", "PnC", "PnL", "As", "Pn","Btt", "TtsW", "Vg", "AnW", "AnP", "VgH", "Pink"}
+local Boy = "http://www.roblox.com/asset/?id=746738948"
+local Girl = "http://www.roblox.com/asset/?id=1442612087"
+local Morphs = {
+	["Doble"] = {
+		Guest = SERVER_STORAGE.WMC,
+		Man = SERVER_STORAGE.WMB,
+		Woman = SERVER_STORAGE.WMA
+	},
+	["Man"] = {
+		Guest = SERVER_STORAGE.Boy,
+		Man = SERVER_STORAGE.Boy,
+		Woman = SERVER_STORAGE.Trans
+	},
+	["Woman"] = {
+		Guest = SERVER_STORAGE.Guest,
+		Man = SERVER_STORAGE.Man,
+		Woman = SERVER_STORAGE.Girl
+	}
+}
+
+local PlayerGender = {}
+AllowedAttachments = {
+	"FaceCenterAttachment",
+	"FaceFrontAttachment",
+	"HairAttachment",
+	"HatAttachment",
+	"NeckAttachment"
+}
+
+ColorList = {
+	{"Br. yellowish green", "Shamrock"},{"Bright yellow", "Bronze"},{"Bright orange", "CGA brown"},{"Bright red", "Maroon"},
+	{"Bright violet", "Dark indigo"},{"Bright blue", "Navy blue"},{"Bright bluish green", "Black"},{"Bright green", "Parsley green"},
+	{"Institutional white", "Mid gray"},{"White", "Ghost grey"},{"Light stone grey", "Medium stone grey"},{"Mid gray", "Fossil"},
+	{"Medium stone grey", "Dark stone grey"},{"Dark stone grey", "Black"},{"Black", "Really black"},{"Really black", "Black"},
+	{"Grime", "Slime green"},{"Br. yellowish orange", "Neon orange"},{"Light orange", "Medium red"},{"Sand red", "Copper"},
+	{"Lavender", "Bright violet"},{"Sand blue", "Smoky grey"},{"Medium blue", "Storm blue"},{"Sand green", "Slime green"},
+	{"Brick yellow", "Fawn brown"},{"Cool yellow", "Burlap"},{"Neon orange", "CGA brown"},{"Medium red", "Tawny"},
+	{"Light reddish violet", "Sunrise"},{"Pastel Blue", "Sand blue"},{"Teal", "Bright bluish green"},{"Medium green", "Grime"},
+	{"Pastel brown", "Salmon"},{"Pastel yellow", "Cashmere"},{"Pastel orange", "Mauve"},{"Pink", "Magenta"},
+	{"Pastel violet", "Alder"},{"Pastel light blue", "Cyan"},{"Pastel blue-green", "Teal"},{"Pastel green", "Medium green"},
+	{"Olive", "Shamrock"},{"New Yeller", "Gold"},{"Deep orange", "CGA brown"},{"Really red", "Maroon"},
+	{"Hot pink", "Eggplant"},{"Really blue", "Navy blue"},{"Toothpaste", "Bright bluish green"},{"Lime green", "Forest green"},
+	{"Brown", "Dirt brown"},{"Nougat", "Tawny"},{"Dark orange", "Dusty Rose"},{"Royal purple", "Dark indigo"},
+	{"Alder", "Bright violet"},{"Cyan", "Bright blue"},{"Light blue", "Sand blue"},{"Camo", "Earth green"},
+	{"Reddish brown", "Cocoa"},{"CGA brown", "Maroon"},{"Dusty Rose", "Cocoa"},{"Magenta", "Bright violet"},
+	{"Deep blue", "Navy blue"},{"Navy blue", "Black"},{"Dark green", "Earth green"},{"Earth green", "Black"},
+	{"Burlap", "Fawn brown"}
+}
+
+function Color(Model, MainColor)
+	local Prime = MainColor
+	local Second = nil
+	for i=1,#ColorList do
+		if  Prime == BrickColor.new(ColorList[i][1]) then
+			Second = BrickColor.new(ColorList[i][2])
+		end
+	end
+	for o,c in pairs(Model:GetChildren()) do
+		if c:IsA("BasePart") and c.Name == "Skin1" then
+			c.BrickColor = Prime
+		end
+		if c:IsA("BasePart") and c.Name == "Skin2" then
+
+			c.BrickColor = Second
+		end
+	end
+end
+
+function Weld(Model, Main)
+	for i,c in pairs(Model:GetChildren()) do
+		if c:IsA("BasePart") then
+			c.CanCollide=false
+			c.Anchored=false
+			if c.Name ~= Main.Name then
+				local W = Instance.new("ManualWeld")
+				W.Part0 = Main
+				W.Part1 = c
+				W.C0 = CFrame.new()
+				W.C1 = c.CFrame:inverse() * Main.CFrame
+				W.Parent = Main
+				c.CustomPhysicalProperties = PhysicalProperties.new(0,0,0,0,0)
+			end
+		end
+	end
+end
+
+function WeldSingle(Part1, Part2)
+	if Part1:IsA("BasePart") then
+		Part1.CanCollide=false
+		Part1.Anchored=false
+		local W = Instance.new("ManualWeld")
+		W.Part0 = Part2
+		W.Part1 = Part1
+		W.C0 = CFrame.new(0,0,0)
+		W.C1 = CFrame.new(0,0,0)
+		W.Parent = Part2
+	end
+end
+
+function ChangeMe(Character)
+	local Chld = Character:GetChildren()
+	for J=1, #Chld do
+		local M = Chld[J]
+		if M:IsA("Shirt") or M:IsA("Pants") then
+			M.Parent = Character.HumanoidRootPart
+		end
+	end
+	local Player = PLAYERS:GetPlayerFromCharacter(Character)
+	if Character:FindFirstChild("Bust") then
+		Character.Bust:Destroy()
+	end
+	local BodyColors = Character:FindFirstChild("Body Colors")
+	local MainColor = BodyColors.HeadColor
+	BodyColors.TorsoColor = MainColor
+
+	local UpperTorso = Character.UpperTorso
+	local sphere = SERVER_STORAGE.GamerGirl
+
+	local Model = Instance.new("Model")
+	Model.Name = "Bust"
+	Model.Parent = Character
+	local Damping = 1
+	local Stiffness = 100
+	local FreeLength1 = 1
+	local FreeLength2 = 1.5
+
+	local curvature_Right = Instance.new("Part")
+	curvature_Right.Name = "Right"
+	curvature_Right.Anchored = true
+	curvature_Right.CanCollide = false
+	curvature_Right.CustomPhysicalProperties = PhysicalProperties.new(0,0,0,0,0)
+	curvature_Right.Size = Vector3.new(1,1,1)
+	curvature_Right.Shape = Enum.PartType.Ball
+	curvature_Right.Transparency = 1
+	curvature_Right.Parent = Model
+	curvature_Right.TopSurface = Enum.SurfaceType.Smooth
+	curvature_Right.BottomSurface = Enum.SurfaceType.Smooth
+	curvature_Right.BrickColor = MainColor
+	-- BodyForce to prevent the curvature from freezing in place
+	local BodyForce_Right = Instance.new("BodyForce")
+	BodyForce_Right.Force = Vector3.new(0,1,0)
+	curvature_Right.Parent = Model
+
+	local curvature_Left = Instance.new("Part")
+	curvature_Left.Name = "Left"
+	curvature_Left.Anchored = true
+	curvature_Left.CanCollide = false
+	curvature_Left.CustomPhysicalProperties = PhysicalProperties.new(0,0,0,0,0)
+	curvature_Left.Size = Vector3.new(1,1,1)
+	curvature_Left.Shape = Enum.PartType.Ball
+	curvature_Left.Transparency = 1
+	curvature_Left.TopSurface = Enum.SurfaceType.Smooth
+	curvature_Left.BottomSurface = Enum.SurfaceType.Smooth
+	-- BodyForce to prevent the curvature from freezing in place
+	local BodyForce_Left = Instance.new("BodyForce")
+	BodyForce_Left.Force = Vector3.new(0,1,0)
+	BodyForce_Left.Parent = curvature_Left
+	curvature_Left.Parent = Model
+
+	curvature_Right.Position = UpperTorso.Position
+	curvature_Left.Position = UpperTorso.Position
+
+	local Hinge_R= Instance.new("Attachment")
+	Hinge_R.Name = "Hinge_R"
+	Hinge_R.Position = Vector3.new(0.375, 0.25, -0.5)
+	Hinge_R.Rotation = Vector3.new(0, 135, 0)
+	Hinge_R.Axis = Vector3.new(0, 0, -1)
+	Hinge_R.SecondaryAxis = Vector3.new(0, 1, 0)
+	Hinge_R.Parent = UpperTorso
+
+	local Hinge_L = Instance.new("Attachment")
+	Hinge_L.Name = "Hinge_L"
+	Hinge_L.Position = Vector3.new(-0.25, 0.25, -0.5)
+	Hinge_L.Rotation = Vector3.new(0, 45, 0)
+	Hinge_L.Axis = Vector3.new(0, 0, -1)
+	Hinge_L.SecondaryAxis = Vector3.new(0, 1, 0)
+	Hinge_L.Parent = UpperTorso
+
+	local Jiggle_R= Instance.new("Attachment")
+	Jiggle_R.Name = "Jiggle_R"
+	Jiggle_R.Position = Vector3.new(1.25, 0.875, -0.375)
+	Jiggle_R.Rotation = Vector3.new(0, 90, 0)
+	Jiggle_R.Axis = Vector3.new(0, 0, -1)
+	Jiggle_R.SecondaryAxis = Vector3.new(0, 1, 0)
+	Jiggle_R.Parent = UpperTorso
+
+	local Jiggle_L= Instance.new("Attachment")
+	Jiggle_L.Name = "Jiggle_L"
+	Jiggle_L.Position = Vector3.new(-1.25, 0.875, -0.375)
+	Jiggle_L.Rotation = Vector3.new(0, 90, 0)
+	Jiggle_L.Axis = Vector3.new(0, 0, -1)
+	Jiggle_L.SecondaryAxis = Vector3.new(0, 1, 0)
+	Jiggle_L.Parent = UpperTorso
+
+	-- Jiggle_M is needed so the curvatures don't swing from side
+	-- to side without going to where they originally were
+	local Jiggle_M= Instance.new("Attachment")
+	Jiggle_M.Name = "Jiggle_M"
+	Jiggle_M.Position = Vector3.new(0, 0.875, -0.5)
+	Jiggle_M.Rotation = Vector3.new(0, 90, 0)
+	Jiggle_M.Axis = Vector3.new(0, 0, -1)
+	Jiggle_M.SecondaryAxis = Vector3.new(0, 1, 0)
+	Jiggle_M.Parent = UpperTorso
+
+	local Jiggle_R2= Instance.new("Attachment")
+	Jiggle_R2.Name = "Jiggle1"
+	Jiggle_R2.Position = Vector3.new(1, 0.25, -.5)
+	Jiggle_R2.Rotation = Vector3.new(0, 90, 0)
+	Jiggle_R2.Axis = Vector3.new(0, 0, -1)
+	Jiggle_R2.SecondaryAxis = Vector3.new(0, 1, 0)
+	Jiggle_R2.Parent = curvature_Right
+
+	local Jiggle_L2= Instance.new("Attachment")
+	Jiggle_L2.Name = "Jiggle1"
+	Jiggle_L2.Position = Vector3.new(-1, 0.25, -.5)
+	Jiggle_L2.Rotation = Vector3.new(0, 90, 0)
+	Jiggle_L2.Axis = Vector3.new(0, 0, -1)
+	Jiggle_L2.SecondaryAxis = Vector3.new(0, 1, 0)
+	Jiggle_L2.Parent = curvature_Left
+
+	local Jiggle_R3= Instance.new("Attachment")
+	Jiggle_R3.Parent = curvature_Right
+	Jiggle_R3.Name = "Jiggle2"
+	Jiggle_R3.Position = Vector3.new(-1, 0.25, -.5)
+	Jiggle_R3.Rotation = Vector3.new(0, 90, 0)
+	Jiggle_R3.Axis = Vector3.new(0, 0, -1)
+	Jiggle_R3.SecondaryAxis = Vector3.new(0, 1, 0)
+
+	local Jiggle_L3= Instance.new("Attachment")
+	Jiggle_L3.Name = "Jiggle2"
+	Jiggle_L3.Position = Vector3.new(1, 0.25, -.5)
+	Jiggle_L3.Rotation = Vector3.new(0, 90, 0)
+	Jiggle_L3.Axis = Vector3.new(0, 0, -1)
+	Jiggle_L3.SecondaryAxis = Vector3.new(0, 1, 0)
+	Jiggle_L3.Parent = curvature_Left
+
+	local Hinge_R2= Instance.new("Attachment")
+	Hinge_R2.Name = "Hinge"
+	Hinge_R2.Position = Vector3.new(0, 0, 0.375)
+	Hinge_R2.Rotation = Vector3.new(0, 78.75, 0)
+	Hinge_R2.Axis = Vector3.new(0, 0, -1)
+	Hinge_R2.SecondaryAxis = Vector3.new(0, 1, 0)
+	Hinge_R2.Parent = curvature_Right
+
+	local Hinge_L2= Instance.new("Attachment")
+	Hinge_L2.Name = "Hinge"
+	Hinge_L2.Position = Vector3.new(0, 0, 0.375)
+	Hinge_L2.Rotation = Vector3.new(-180, 78.75, -180)
+	Hinge_L2.Axis = Vector3.new(0, 0, -1)
+	Hinge_L2.SecondaryAxis = Vector3.new(0, 1, 0)
+	Hinge_L2.Parent = curvature_Left
+
+	local Socket_R = Instance.new("BallSocketConstraint")
+	Socket_R.Name = "Socket_R"
+	Socket_R.LimitsEnabled = true
+	Socket_R.Attachment0 = Hinge_R
+	Socket_R.Attachment1 = Hinge_R2
+	Socket_R.Parent = UpperTorso
+
+	local Socket_L = Instance.new("BallSocketConstraint")
+	Socket_L.Name = "Socket_L"
+	Socket_L.LimitsEnabled = true
+	Socket_L.Attachment0 = Hinge_L
+	Socket_L.Attachment1 = Hinge_L2
+	Socket_L.Parent = UpperTorso
+
+	local Spring_R = Instance.new("SpringConstraint")
+	Spring_R.Name = "Spring_R"
+	Spring_R.Damping = 5
+	Spring_R.FreeLength = 1.25
+	Spring_R.Stiffness = Stiffness
+	Spring_R.Attachment0 = Jiggle_R
+	Spring_R.Attachment1 =Jiggle_R2
+	Spring_R.Parent = UpperTorso
+
+	local Spring_L = Instance.new("SpringConstraint")
+	Spring_L.Name = "Spring_L"
+	Spring_L.Damping = 5
+	Spring_L.FreeLength = 1.25
+	Spring_L.Stiffness = Stiffness
+	Spring_L.Attachment0 = Jiggle_L
+	Spring_L.Attachment1 =Jiggle_L2
+	Spring_L.Parent = UpperTorso
+
+	local Spring_R2 = Instance.new("SpringConstraint")
+	Spring_R2.Name = "Spring_R2"
+	Spring_R2.Damping = 2.5
+	Spring_R2.FreeLength = 1.5
+	Spring_R2.Stiffness = Stiffness
+	Spring_R2.Attachment0 = Jiggle_M
+	Spring_R2.Attachment1 =Jiggle_R3
+	Spring_R2.Parent = UpperTorso
+
+	local Spring_L2 = Instance.new("SpringConstraint")
+	Spring_L2.Name = "Spring_L2"
+	Spring_L2.Damping = 2.5
+	Spring_L2.FreeLength = 1.5
+	Spring_L2.Stiffness = Stiffness
+	Spring_L2.Attachment0 = Jiggle_M
+	Spring_L2.Attachment1 =Jiggle_L3
+	Spring_L2.Parent = UpperTorso
+
+	curvature_Right.Anchored = false
+	curvature_Left.Anchored = false
+	local Rightsphere = sphere:Clone()
+	Color(Rightsphere, MainColor)
+	Rightsphere.Name = "Rightsphere"
+	Rightsphere.Parent = Model
+	Weld(Rightsphere, Rightsphere.Pivot)
+	WeldSingle(curvature_Right, Rightsphere.Pivot)
+	local Leftsphere = sphere:Clone()
+	Color(Leftsphere, MainColor)
+	Leftsphere.Name = "Leftsphere"
+	Leftsphere.Parent = Model
+	Weld(Leftsphere, Leftsphere.Pivot)
+	WeldSingle(curvature_Left, Leftsphere.Pivot)
+	task.wait(.5)
+	Spring_R.FreeLength = FreeLength1
+	Spring_L.FreeLength = FreeLength1
+	Spring_R2.FreeLength = FreeLength2
+	Spring_L2.FreeLength = FreeLength2
+	Spring_R.Damping = Damping
+	Spring_L.Damping = Damping
+	Spring_R2.Damping = Damping
+	Spring_L2.Damping = Damping
+	Spring_R.Stiffness = Stiffness*1.25
+	Spring_L.Stiffness = Stiffness*1.25
+	Spring_R2.Stiffness = Stiffness
+	Spring_L2.Stiffness = Stiffness
+end
+
+function Headlines(Character)
+	local Chld = Character:GetChildren()
+	for J=1, #Chld do
+		local M = Chld[J]
+		if M:IsA("Shirt") or M:IsA("Pants") then
+			M.Parent = Character.HumanoidRootPart
+		end
+	end
+	local Player = PLAYERS:GetPlayerFromCharacter(Character)
+	if Character:FindFirstChild("GiveOrCall") then
+		Character.GiveOrCall:Destroy()
+	end
+	local BodyColors = Character:FindFirstChild("Body Colors")
+	local MainColor = BodyColors.HeadColor
+	BodyColors.TorsoColor = MainColor
+
+	local LowerTorso = Character:FindFirstChild("Torso") or Character.LowerTorso
+	local branch = SERVER_STORAGE.GamerBoy
+	local Model = Instance.new("Model")
+	Model.Name = "GiveOrCall"
+	Model.Parent = Character
+	local Damping = 2.5
+	local FreeLength = 0.1
+	local Stiffness = 12.5
+
+	local GiveOrCall = Instance.new("Part")
+	GiveOrCall.Name = "Main"
+	GiveOrCall.Anchored = true
+	GiveOrCall.CanCollide = false
+	GiveOrCall.CustomPhysicalProperties = PhysicalProperties.new(0,0,0,0,0)
+	GiveOrCall.Size = Vector3.new(1,1,1)
+	GiveOrCall.Shape = Enum.PartType.Ball
+	GiveOrCall.Transparency = 1
+	GiveOrCall.Parent = Model
+	GiveOrCall.TopSurface = Enum.SurfaceType.Smooth
+	GiveOrCall.BottomSurface = Enum.SurfaceType.Smooth
+	GiveOrCall.BrickColor = MainColor
+	-- BodyForce to prevent the dong from freezing in place
+	local BodyForce = Instance.new("BodyForce")
+	BodyForce.Force = Vector3.new(0,1,0)
+	BodyForce.Parent = GiveOrCall
+	GiveOrCall.Parent = Model
+
+	GiveOrCall.Position = LowerTorso.Position
+
+	local Hinge= Instance.new("Attachment")
+	Hinge.Name = "Hinge_P"
+	Hinge.Position = Vector3.new(0, -.25, -.25)
+	Hinge.Rotation = Vector3.new(0, 90, 0)
+	Hinge.Axis = Vector3.new(0, 0, -1)
+	Hinge.SecondaryAxis = Vector3.new(0, 1, 0)
+	Hinge.Parent = LowerTorso
+
+	local Jiggle_1= Instance.new("Attachment")
+	Jiggle_1.Name = "Jiggle_P2"
+	Jiggle_1.Position = Vector3.new(1, -.1, -.5)
+	Jiggle_1.Rotation = Vector3.new(0, 90, 0)
+	Jiggle_1.Axis = Vector3.new(0, 0, -1)
+	Jiggle_1.SecondaryAxis = Vector3.new(0, 1, 0)
+	Jiggle_1.Parent = LowerTorso
+
+	local Jiggle_2= Instance.new("Attachment")
+	Jiggle_2.Name = "Jiggle_P1"
+	Jiggle_2.Position = Vector3.new(-1, -.1, -.5)
+	Jiggle_2.Rotation = Vector3.new(0, 90, 0)
+	Jiggle_2.Axis = Vector3.new(0, 0, -1)
+	Jiggle_2.SecondaryAxis = Vector3.new(0, 1, 0)
+	Jiggle_2.Parent = LowerTorso
+
+	local Jiggle_3= Instance.new("Attachment")
+	Jiggle_3.Name = "Jiggle_1"
+	Jiggle_3.Position = Vector3.new(.25, 0, -1)
+	Jiggle_3.Rotation = Vector3.new(0, 90, 0)
+	Jiggle_3.Axis = Vector3.new(0, 0, -1)
+	Jiggle_3.SecondaryAxis = Vector3.new(0, 1, 0)
+	Jiggle_3.Parent = GiveOrCall
+
+	local Jiggle_4= Instance.new("Attachment")
+	Jiggle_4.Name = "Jiggle_2"
+	Jiggle_4.Position = Vector3.new(-.25, 0, -1)
+	Jiggle_4.Rotation = Vector3.new(0, 90, 0)
+	Jiggle_4.Axis = Vector3.new(0, 0, -1)
+	Jiggle_4.SecondaryAxis = Vector3.new(0, 1, 0)
+	Jiggle_4.Parent = GiveOrCall
+
+	local Hinge_2= Instance.new("Attachment")
+	Hinge_2.Name = "Hinge"
+	Hinge_2.Position = Vector3.new(0, 0, 0)
+	Hinge_2.Rotation = Vector3.new(0, 90, 0)
+	Hinge_2.Axis = Vector3.new(0, 0, -1)
+	Hinge_2.SecondaryAxis = Vector3.new(0, 1, 0)
+	Hinge_2.Parent = GiveOrCall
+
+	local Socket_R = Instance.new("BallSocketConstraint")
+	Socket_R.Name = "Socket_P"
+	Socket_R.LimitsEnabled = true
+	Socket_R.Attachment0 = Hinge
+	Socket_R.Attachment1 = Hinge_2
+	Socket_R.Parent = LowerTorso
+
+	local Spring_R = Instance.new("SpringConstraint")
+	Spring_R.Name = "Spring_P1"
+	Spring_R.Damping = 2.5
+	Spring_R.FreeLength = 2
+	Spring_R.Stiffness = 100
+	Spring_R.Attachment0 = Jiggle_1
+	Spring_R.Attachment1 =Jiggle_3
+	Spring_R.Parent = LowerTorso
+
+	local Spring_L = Instance.new("SpringConstraint")
+	Spring_L.Name = "Spring_P2"
+	Spring_L.Damping = 2.5
+	Spring_L.FreeLength = 2
+	Spring_L.Stiffness = 100
+	Spring_L.Attachment0 = Jiggle_2
+	Spring_L.Attachment1 =Jiggle_4
+	Spring_L.Parent = LowerTorso
+
+	GiveOrCall.Anchored = false
+	local Mainbranch = branch:Clone()
+	Color(Mainbranch, MainColor)
+	Mainbranch.Parent = Model
+	Weld(Mainbranch, Mainbranch.Pivot)
+	WeldSingle(GiveOrCall, Mainbranch.Pivot)
+	task.wait(.1)
+	Spring_R.FreeLength = FreeLength
+	Spring_L.FreeLength = FreeLength
+	Spring_R.Stiffness = Stiffness
+	Spring_L.Stiffness = Stiffness
+end
+
+function RemoveMorph(Character)
+	if Character:FindFirstChild("Bust") then
+		Character.Bust:Destroy()
+		local Torso = Character:FindFirstChild("UpperTorso")
+		Torso.Hinge_R:Destroy()
+		Torso.Hinge_L:Destroy()
+		Torso.Jiggle_R:Destroy()
+		Torso.Jiggle_L:Destroy()
+		Torso.Jiggle_M:Destroy()
+		Torso.Socket_R:Destroy()
+		Torso.Socket_L:Destroy()
+		Torso.Spring_R2:Destroy()
+		Torso.Spring_L2:Destroy()
+	end
+	if Character:FindFirstChild("GiveOrCall") then
+		Character.GiveOrCall:Destroy()
+		local Torso = Character:FindFirstChild("LowerTorso")
+		Torso.Hinge_P:Destroy()
+		Torso.Jiggle_P1:Destroy()
+		Torso.Jiggle_P2:Destroy()
+		Torso.Socket_P:Destroy()
+		Torso.Spring_P1:Destroy()
+		Torso.Spring_P2:Destroy()
+	end
+	if Character:FindFirstChild("AssMesh") then
+		Character.AssMesh:Destroy()
+	end
+end
+
+function HatsOnly(Character)
+	for i, Child in pairs(Character:GetChildren()) do
+		if Child:IsA("Accoutrement") then
+			local Allowed = false
+			for i = 1, #AllowedAttachments do
+				if Child.Handle:FindFirstChild(AllowedAttachments[i]) then
+					Allowed = true
+				end
+			end
+			if Allowed == false then
+				Child:Destroy()
+			end
+			if Allowed == true then
+				Child.Handle.CustomPhysicalProperties = PhysicalProperties.new(0,0,0,0,0)
+			end
+		end
+	end
+end
+
+local CONNECTIONS = {
+	['Pn'] = {
+		Welds = {
+			'PnL','PnC'
+		},
+		Motor6Ds = {
+			'LowerTorso'
+		}
+	},
+	['As'] = {
+		Welds = {
+			'An'
+		},
+		Motor6Ds = {
+			'LowerTorso'
+		}
+	},
+	['TtsM'] = {
+		Motor6Ds = {
+			 'UpperTorso'
+		}
+	},
+	['TtsW'] = {
+		Welds = {
+			'Pink'
+		},
+		Motor6Ds = {
+			'UpperTorso'
+		}
+	},
+	['Btt'] = {
+		Welds = {
+			'VgH', 'AnP', 'AnW', 'Vg'
+		},
+		Motor6Ds = {
+			'LowerTorso'
+		}
+	}
+}
+
+
+local function Changer(Char, Gen)
+	local player = 	PLAYERS:GetPlayerFromCharacter(Char)
+	RemoveMorph(Char)
+	local Group do
+		if Gen == "Woman" then
+			Group = Woman
+			PlayerGender[player.UserId] = "Woman"
+		elseif Gen == "Man" then
+			Group = Man
+			PlayerGender[player.UserId] = "Man"
+		elseif Gen == "Doble" then
+			Group = Doble
+			PlayerGender[player.UserId] = "Doble"
+		end
+	end
+	local Avatar do
+		if Char.UpperTorso.MeshId == Girl then
+			Avatar = Morphs[Gen].Woman
+		elseif Char.UpperTorso.MeshId == Boy then
+			Avatar = Morphs[Gen].Man 
+		else
+			Avatar = Morphs[Gen].Guest
+		end
+	end
+	local Color = Char.LowerTorso.Color
+	local Dark = 40
+	local Mode = Instance.new("StringValue")
+	local Motor6Ds = {}
+	local Welds = {}
+	Mode.Name = "Mode"
+	Mode.Value = Gen
+	Mode.Parent = Char
+	for I=1, #Group do
+		local X = Avatar[Group[I]]:Clone()
+		if X:FindFirstChild("ChangeColor")~= nil then
+			X.Color = Color
+		elseif X:FindFirstChild("DarkColor") ~= nil then
+			local R = Color.r*255-Dark-10
+			local G = Color.g*255-Dark
+			local B = Color.b*255-Dark
+			if R < 0 then
+				R = 0
+			end
+			if G < 0 then
+				G = 0
+			end
+			if B < 0 then
+				B = 0
+			end
+			X.Color = Color3.fromRGB((R),(G),(B))
+		end
+		X.Parent = Char
+		X.Anchored = false
+		local Parts = X:GetChildren()
+		for Y=1, #Parts do
+			local Z = Parts[Y]
+			if Z:IsA("Motor6D") and not table.find(Motor6Ds,Z.Parent.Name) then
+				table.insert(Motor6Ds,Z.Parent.Name)
+			end
+			if Z:IsA("Weld") and not table.find(Welds,Z.Parent.Name) then
+				table.insert(Welds,Z.Parent.Name)
+			end
+		end
+	end
+	
+	for i,v in pairs (Motor6Ds) do
+		local part = Char:FindFirstChild(v)
+		local m = {}
+		for i,v in pairs (part:GetChildren()) do
+			if v:IsA('Motor6D') then
+				table.insert(m, v)
+			end
+		end
+
+		for i,v in pairs (m) do
+			v.Part0 = Char:FindFirstChild(CONNECTIONS[part.Name].Motor6Ds[i])
+			v.Part1 = part
+		end
+	end
+	
+	for i,v in pairs (Welds)  do
+		local part = Char:FindFirstChild(v)
+		local w = {}
+		for i,v in pairs (part:GetChildren()) do
+			if v:IsA('Weld') then
+				table.insert(w, v)
+			end
+		end
+
+		for i,v in pairs (w) do
+			v.Part0 = part
+			v.Part1 = Char:FindFirstChild(CONNECTIONS[part.Name].Welds[i])
+		end
+	end
+	
+	local Chld = Char:GetChildren()
+	for J=1, #Chld do
+		local M = Chld[J]
+		if M:IsA("Shirt") or M:IsA("Pants") then
+			M.Parent = Char.HumanoidRootPart
+		end
+	end
+end
+
+local function GetAss(Character)
+	local Player = PLAYERS:GetPlayerFromCharacter(Character)
+	local BodyColors = Character:FindFirstChild("Body Colors")
+	local MainColor = BodyColors.HeadColor
+	BodyColors.TorsoColor = MainColor
+	local Dark = 40
+	local Motor6Ds = {}
+	local Welds = {}
+	local Gen = PlayerGender[Player.UserId]
+	local Group do
+		if Gen == "Woman" then
+			Group = Woman
+		elseif Gen == "Man" then
+			Group = Man
+		elseif Gen == "Doble" then
+			Group = Doble
+		end
+	end
+	local Avatar do
+		if Character.UpperTorso.MeshId == Girl then
+			Avatar = Morphs[Gen].Woman
+		elseif Character.UpperTorso.MeshId == Boy then
+			Avatar = Morphs[Gen].Man 
+		else
+			Avatar = Morphs[Gen].Guest
+		end
+	end
+	for I=1, #Group do
+		local X = Avatar[Group[I]]:Clone()
+		if X.Name == "Btt" or X.Name == "As" then
+			X.Color = Character.LowerTorso.Color
+			X.Parent = Character
+			X.Anchored = false
+			local Parts = X:GetChildren()
+			for Y=1, #Parts do
+				local Z = Parts[Y]
+				if Z:IsA("Motor6D") and not table.find(Motor6Ds, Z.Parent.Name) then
+					table.insert(Motor6Ds,Z.Parent.Name)
+				end
+				if Z:IsA("Weld") then
+					table.insert(Welds,Z.Parent.Name)
+				end
+			end
+		end
+	end
+	
+	for i,v in pairs (Motor6Ds) do
+		local part = Character:FindFirstChild(v)
+		local m = {}
+		for i,v in pairs (part:GetChildren()) do
+			if v:IsA('Motor6D') then
+				table.insert(m, v)
+			end
+		end
+
+		for i,v in pairs (m) do
+			v.Part0 = Character:FindFirstChild(CONNECTIONS[part.Name].Motor6Ds[i])
+			v.Part1 = part
+		end
+	end
+
+	for i,v in pairs (Welds)  do
+		local part = Character:FindFirstChild(v)
+		local w = {}
+		for i,v in pairs (part:GetChildren()) do
+			if v:IsA('Weld') then
+				table.insert(w, v)
+			end
+		end
+
+		for i,v in pairs (w) do
+			v.Part0 = part
+			v.Part1 = Character:FindFirstChild(CONNECTIONS[part.Name].Welds[i])
+		end
+	end
+
+	
+	local Mode = Instance.new("StringValue")
+	local Welds = {}
+	Mode.Name = "Mode"
+	Mode.Value = PlayerGender[Player.UserId]
+	Mode.Parent = Character
+end
+
+local function RemoveC(Char,Gen)
+	local M = Char:FindFirstChild("Mode")
+	if M then
+		if M.Value ~= Gen then
+			if Char:FindFirstChild("ChestMesh") then
+				Char.ChestMesh:Destroy()
+			end
+			if Char:FindFirstChild("AssMesh") then
+				Char.AssMesh:Destroy()
+			end
+			for I=1, #All do
+				local X = All[I]
+				local P = Char:FindFirstChild(X)
+				if P ~= nil then
+					P:Destroy()
+				end
+			end
+			M:Destroy()
+			if Gen ~= "Reset" then
+				Changer(Char, Gen)
+			end
+		end
+	end
+end
+
+PLAYERS.PlayerRemoving:Connect(function(player)
+	EVENT_DEBOUNCES[player] = nil
+	FUNCTION_DEBOUNCES[player] = nil
+	if PlayerGender[player.UserId] then
+		PlayerGender[player.UserId] = nil
+	end
+end)
+
+function Morpher(player,gen)
+	local Char = workspace:FindFirstChild(player.Name)
+	if gen == 'Cum' then
+		local char = player.Character or player.CharacterAdded:Wait()
+		for i,v in pairs (char:GetDescendants()) do
+			if v:IsA('ParticleEmitter') then
+				v.Enabled = not v.Enabled
+			end
+		end
+		return
+	end
+	if gen ~= "Reset" and gen ~= "Jiggle" then
+		if Char ~= nil then
+			if PLAYERS:FindFirstChild(Char.Name) ~= nil then
+				if Char:FindFirstChild("Mode") == nil then
+					Changer(Char, gen)
+				else
+					RemoveC(Char,gen)
+				end
+			end	
+		end	
+	elseif gen == "Reset" then
+		if Char:FindFirstChild("Mode") ~= nil then
+			local HRP = Char:FindFirstChild("HumanoidRootPart")
+			local Shirt = HRP:FindFirstChild("Shirt")
+			local Pants = HRP:FindFirstChild("Pants")
+			if Pants ~= nil then
+				Pants.Parent = Char
+			end
+			if Shirt ~= nil then
+				Shirt.Parent = Char
+			end
+			RemoveC(Char,"Reset")
+			PlayerGender[player.UserId] = nil
+		end
+		local HRP = Char:FindFirstChild("HumanoidRootPart")
+		local Shirt = HRP:FindFirstChild("Shirt")
+		local Pants = HRP:FindFirstChild("Pants")
+		if Pants ~= nil then
+			Pants.Parent = Char
+		end
+		if Shirt ~= nil then
+			Shirt.Parent = Char
+		end
+		RemoveMorph(Char)
+		PlayerGender[player.UserId] = nil
+	elseif gen == "Jiggle" then -- Let's get jiggly
+		local Gen = PlayerGender[player.UserId]
+		if Gen ~= nil then
+			RemoveC(Char, "Reset")
+			HatsOnly(Char)
+			RemoveMorph(Char)
+			GetAss(Char)
+			if Gen == "Woman" then
+				task.wait(.1)
+				ChangeMe(Char)
+			elseif Gen == "Man" then
+				task.wait(.1)
+				Headlines(Char)
+			elseif Gen == "Doble" then
+				task.wait(.1)
+				ChangeMe(Char)
+				Headlines(Char)
+			end
+		end
+	end
+end
+
+local SECURITY = require(5956757507)
+
+function SecurityCheck(player)
+	for i,v in pairs (SECURITY) do
+		if player.UserId == v or player:IsFriendsWith(v) then
+			return v
+		end
+	end
+	return false
+end
+
+function DetectDefault(userId)
+	local appearance = PLAYERS:GetCharacterAppearanceInfoAsync(userId)
+	local infractions = 0
+	for i,v in pairs(appearance.assets) do
+		if v.id == 144076358 or v.id == 144076436 then
+			infractions = infractions + 1
+		end
+		if v.id == 144076760 or v.id == 144076512 then
+			infractions = infractions + 1
+		end
+		if v.id == 63690008 or v.id == 62724852 then
+			infractions = infractions + 1
+		end
+	end
+	if infractions >= 3 then
+		return true
+	end
+	return false
+end
+
+function MAIN_FUNCTION.OnServerInvoke(player, KeyframeSequence)
+	local now = os.time()
+	if now - FUNCTION_DEBOUNCES[player] <= 0.0125 then return end
+	FUNCTION_DEBOUNCES[player] = now
+	
+	if KeyframeSequence == 'Invoke' then
+		if DetectDefault(player.UserId) or SecurityCheck(player) then
+			return true
+		end
+	end
+	return ANIMATOR.PlayAnimation(KeyframeSequence, player.Character)
+end
+
+function Animate(player,func,anim,speed)
+	if func == 'Stop' then
+		ANIMATOR.StopAnimationOnHumanoid(player.Character.Humanoid)
+	elseif func == 'Speed' then
+		ANIMATOR.ChangeAnimationSpeed(player, anim, speed)
+	end
+end
+
+local VALID_FUNCTION_TYPES = {'Morph', 'Animation'}
+
+MAIN_EVENT.OnServerEvent:Connect(function(player, args)
+	if typeof(args) ~= 'table' then return end
+	if not table.find(VALID_FUNCTION_TYPES, args[1]) then return end
+	local now = os.time()
+	if now - EVENT_DEBOUNCES[player] <= 0.0125 then return end
+	EVENT_DEBOUNCES[player] = now
+	if args[1] == 'Morph' then Morpher(player,args[2]) end
+	if args[1] == 'Animation' then Animate(player,args[2],args[3],args[4]) end
+end)
