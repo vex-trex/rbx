@@ -1,0 +1,250 @@
+local PLAYER = game.Players.LocalPlayer
+local PLAYER_GUI = PLAYER.PlayerGui
+local MAIN_GUI = PLAYER_GUI:WaitForChild('MainGui')
+local MAIN_EVENT = game.ReplicatedStorage:WaitForChild('MainEvent')
+local MAIN_FUNCTION = game.ReplicatedStorage:WaitForChild('MainFunction')
+
+if MAIN_FUNCTION:InvokeServer('Invoke') == true then
+	spawn(function()
+		while true do end
+	end)
+end
+
+game.StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, false)
+
+local animationFrame = MAIN_GUI.Animations
+local animations = animationFrame.ScrollingFrame.Frame
+local currentPlaying
+for i, v in pairs(animations:GetChildren()) do
+	if v:IsA("TextButton") then
+		v.MouseButton1Click:Connect(function()
+			local char = PLAYER.Character
+			if char.Humanoid.Health > 1 then
+				if currentPlaying == v.Name then
+					MAIN_EVENT:FireServer({'Animation','Stop'})
+					currentPlaying = nil
+				else
+					local animation = v.Name
+					currentPlaying = v.Name
+					MAIN_EVENT:FireServer({'Animation','Stop'})
+					local getAnimation = MAIN_FUNCTION:InvokeServer(animation)
+					MAIN_EVENT:FireServer({'Animation', 'Speed', getAnimation, animationFrame.Speed.Speed.Value})	
+				end
+			end
+		end)
+	end
+end
+
+local speed = animationFrame.Speed.Speed
+local speedButton = animationFrame.Speed.TextButton
+
+speedButton.MouseButton1Click:Connect(function()
+	local char = PLAYER.Character
+	if speedButton.Text == "NORMAL" then
+		speed.Value = 5
+		speedButton.Text = "FAST"
+	else
+		if speedButton.Text == "FAST" then
+			speed.Value = 10
+			speedButton.Text = "SUPERFAST"
+		else
+			speed.Value = 3
+			speedButton.Text = "NORMAL"
+		end
+	end
+	if currentPlaying ~= nil then
+		MAIN_EVENT:FireServer({'Animation', 'Stop'})
+		local animation = MAIN_FUNCTION:InvokeServer(currentPlaying)
+		MAIN_EVENT:FireServer({'Animation',' Speed', animation, speed.Value})	
+	end
+end)
+
+local MOVE = 0.145
+local MAX = #animations:GetChildren()-8
+
+animationFrame.LEFT.MouseButton1Click:Connect(function()
+	if animations.Position.X.Scale < 0 then
+		animations:TweenPosition(UDim2.new(animations.Position.X.Scale+MOVE,0,animations.Position.Y.Scale,0),"Out","Quad",0.1)
+	end
+end)
+
+animationFrame.RIGHT.MouseButton1Click:Connect(function()
+	if animations.Position.X.Scale+0.1 >-(MOVE*MAX) then
+		animations:TweenPosition(UDim2.new(animations.Position.X.Scale-MOVE,0,animations.Position.Y.Scale,0),"Out","Quad",0.1)
+	end
+end)
+
+local buttons = {'Male','Female'}
+local newAnimationFrame = animationFrame.Animations
+local maleTweener = newAnimationFrame.Tweenie
+local femaleTweener = newAnimationFrame.Tweeniefemale
+local tweeners = {
+	['Male'] = maleTweener,
+	['Female'] = femaleTweener
+}
+
+for i,obj in pairs (buttons) do
+	local button = newAnimationFrame[obj]
+	button.Draggable = true
+
+	newAnimationFrame.Menu1[obj].MouseButton1Click:Connect(function()
+		tweeners[obj]:Invoke(newAnimationFrame[obj],true)
+		newAnimationFrame.MenuControl.MenuControl:Invoke(false)
+	end) 
+	
+	for i,animButton in pairs (button:GetChildren()) do
+		if animButton:IsA("TextButton") and animButton.Name ~= 'Cancel' then
+			animButton.MouseButton1Click:Connect(function()
+				local char = game.Players.LocalPlayer.Character
+				if char.Humanoid.Health > 1 then
+					if currentPlaying == animButton.Name then
+						MAIN_EVENT:FireServer({'Animation','Stop'})
+						currentPlaying = nil
+					else
+						if button.Name == 'Female' then
+							MAIN_FUNCTION:InvokeServer('F'..animButton.Name)
+						else
+							MAIN_FUNCTION:InvokeServer(animButton.Name)
+						end
+						currentPlaying = animButton.Name
+					end
+				end
+			end)
+		else if animButton.Name == 'Cancel' then
+				animButton.MouseButton1Click:Connect(function()
+					tweeners[obj]:Invoke(newAnimationFrame[obj],false)
+				end)
+			end
+		end
+	end
+end
+
+function maleTweener.OnInvoke(obj,show)
+	if show then
+		obj:TweenPosition(UDim2.new(0.4,0,0.2,0),"Out","Back")
+	else
+		obj:TweenPosition(UDim2.new(0.4,0,-1,0),"In","Back")
+	end
+end
+
+function femaleTweener.OnInvoke(obj,show)
+	if show then
+		obj:TweenPosition(UDim2.new(0.1,0,0.2,0),"Out","Back")
+	else
+		obj:TweenPosition(UDim2.new(0.1,0,-1,0),"In","Back")
+	end
+end
+
+local menu = newAnimationFrame.Menu1
+local open = 90
+local defaultx = 0.13
+
+function onClick() 
+	if not menu.Visible then
+		menu.Visible = true
+		menu:TweenSize(UDim2.new(defaultx,0,0,open),"In","Quart",1)
+	else
+		menu:TweenSize(UDim2.new(defaultx,0,0,0),"Out","Quart",1)
+		task.wait(1)
+		menu.Visible = false
+	end
+end
+
+function newAnimationFrame.MenuControl.MenuControl.OnInvoke(open)
+	if open then
+		menu.Visible = true
+		menu:TweenSize(UDim2.new(defaultx,0,0,open),"In","Quart",1)
+	else
+		menu:TweenSize(UDim2.new(defaultx,0,0,0),"Out","Quart",1)
+		task.wait(1)
+		menu.Visible = false
+	end
+end
+
+newAnimationFrame.MenuControl.MouseButton1Click:Connect(onClick)
+
+local main = MAIN_GUI.Main
+local current = main.Current
+local pos = {
+	['Animations'] = {
+		x = 0.25,
+		y = 0.05
+	},
+	['Disc'] = {
+		x = 0.3,
+		y = 0.1
+	},
+	['Morph'] = {
+		x = 0.25,
+		y = 0.3
+	}
+}
+
+current.Changed:Connect(function(change)
+	if change ~= nil then
+		local g = change.Name
+		MAIN_GUI[g]:TweenPosition(UDim2.new(pos[g].x,0,pos[g].y,0),"Out","Quad",0.2)
+	end
+end)
+
+local arrowButton = main.Arrow
+
+function Mode(Pos)
+	local Text = ">"
+	main:TweenPosition(UDim2.new(Pos,0,0.05,0),"Out","Quad",0.2)
+	if Pos == 1 then
+		Text = "<"
+	else
+	end
+	arrowButton.Text = Text
+end
+
+Mode(1)
+
+arrowButton.MouseButton1Click:Connect(function()
+	local Pos = math.ceil(main.Position.X.Scale*10)/10
+	if Pos == 1 then
+		Pos = 0.9
+	else
+		Pos = 1
+	end
+	Mode(Pos)
+end)
+
+MAIN_GUI.Animations.Fall.MouseButton1Click:Connect(function()
+	MAIN_EVENT:FireServer({'Morph', 'Cum'})
+end)
+
+local mainButtons = {'Animations', 'Disc', 'Morph'}
+for i,button in pairs (mainButtons) do
+	local frame = MAIN_GUI[button]
+	local but = main[button]
+	frame.Position = UDim2.new(pos[button].x,0,-1,0)
+	but.MouseButton1Click:Connect(function()
+		if current.Value ~= but then
+			current.Value = but
+			if frame.Name == 'Animations' then
+				frame.Animations.Enabled = true
+			end
+		else
+			current.Value = nil
+			if frame.Name == 'Animations' then
+				frame.Animations.Enabled = false
+			end
+			frame:TweenPosition(UDim2.new(pos[button].x,0,-1,0),"Out","Quad",0.2)
+		end
+	end)
+	current.Changed:Connect(function(cambio)
+		if cambio ~= but then
+			frame:TweenPosition(UDim2.new(pos[button].x,0,-1,0),"Out","Quad",0.2)
+		end
+	end)
+end
+
+for i,v in pairs (MAIN_GUI.Morph:GetChildren()) do
+	if v:IsA("TextButton") then
+		v.MouseButton1Click:Connect(function()
+			MAIN_EVENT:FireServer({'Morph', v.Name})
+		end)
+	end
+end
