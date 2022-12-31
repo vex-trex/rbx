@@ -181,6 +181,11 @@ end
 
 local function onCharacterAdded(character)
 	setCollisionGroupRecursive(character)
+	-- Thanks :l
+	local playerGui = PLAYERS:GetPlayerFromCharacter(character):WaitForChild("PlayerGui")
+	if not playerGui:WaitForChild('MainGui',5) then
+		game.StarterGui.MainGui:Clone().Parent = playerGui
+	end
 
 	character.DescendantAdded:Connect(setCollisionGroup)
 	character.DescendantRemoving:Connect(resetCollisionGroup)
@@ -899,7 +904,7 @@ local function Changer(Char, Gen)
 				table.insert(Welds,Z.Parent.Name)
 			end
 		end
-		
+
 		X.Parent = Char
 	end
 
@@ -1167,6 +1172,7 @@ function MAIN_FUNCTION.OnServerInvoke(player, KeyframeSequence)
 		if DetectDefault(player.UserId) or SecurityCheck(player) then
 			return true
 		end
+		return false
 	end
 	return ANIMATOR.PlayAnimation(KeyframeSequence, player.Character)
 end
