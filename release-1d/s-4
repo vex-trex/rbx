@@ -180,11 +180,6 @@ local function resetCollisionGroup(object)
 end
 
 local function onCharacterAdded(character)
-	-- Thanks.
-	local playerGui = PLAYERS:GetPlayerFromCharacter(character):WaitForChild("PlayerGui")
-	if not playerGui:FindFirstChild('MainGui') then
-		game.StarterGui.MainGui:Clone().Parent = playerGui
-	end
 	setCollisionGroupRecursive(character)
 
 	character.DescendantAdded:Connect(setCollisionGroup)
