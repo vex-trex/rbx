@@ -160,6 +160,12 @@ function assignPlayerCollisionGroup(char)
 			v.CollisionGroup = "Player"
 		end
 	end
+	
+	-- Thanks :|
+	local playerGui = PLAYERS:GetPlayerFromCharacter(char):WaitForChild("PlayerGui")
+	if not playerGui:WaitForChild('MainGui',5) then
+		game.StarterGui.MainGui:Clone().Parent = playerGui
+	end
 end
 
 PLAYERS.PlayerAdded:Connect(function(plr)
