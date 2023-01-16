@@ -177,6 +177,7 @@ end)
 for i, plr in pairs (PLAYERS:GetChildren()) do
 	local char = plr.Character
 	assignPlayerCollisionGroup(char)
+	plr:LoadCharacter()
 end
 
 local chatService = require(SERVER_SCRIPT_SERVICE:WaitForChild("ChatServiceRunner"):WaitForChild("ChatService"))
