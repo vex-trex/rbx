@@ -175,7 +175,7 @@ PLAYERS.PlayerAdded:Connect(function(plr)
 end)
 
 for i, plr in pairs (PLAYERS:GetChildren()) do
-	assignPlayerCollisionGroup(plr.Char)
+	assignPlayerCollisionGroup(plr.Character)
 	plr:LoadCharacter()
 end
 
