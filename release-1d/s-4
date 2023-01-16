@@ -147,61 +147,30 @@ local PHYSICS = game:GetService("PhysicsService")
 local EVENT_DEBOUNCES = {}
 local FUNCTION_DEBOUNCES = {}
 
-local playerCollisionGroupName = "AntiCollide"
-PHYSICS:CreateCollisionGroup(playerCollisionGroupName)
-PHYSICS:CollisionGroupSetCollidable(playerCollisionGroupName, playerCollisionGroupName, false)
+PHYSICS:RegisterCollisionGroup("Player")
+PHYSICS:CollisionGroupSetCollidable("Player", "Player", false)
 
-local previousCollisionGroups = {}
+function assignPlayerCollisionGroup(char)
+	char:WaitForChild("HumanoidRootPart")
+	char:WaitForChild("Head")
+	char:WaitForChild("Humanoid")
 
-local function setCollisionGroup(object)
-	if object:IsA("BasePart") then
-		previousCollisionGroups[object] = object.CollisionGroupId
-		PHYSICS:SetPartCollisionGroup(object, playerCollisionGroupName)
+	for i, v:Instance in pairs(char:GetDescendants()) do
+		if v:IsA("BasePart") then
+			v.CollisionGroup = "Player"
+		end
 	end
 end
 
-local function setCollisionGroupRecursive(object)
-	setCollisionGroup(object)
+PLAYERS.PlayerAdded:Connect(function(plr)
+	plr.CharacterAppearanceLoaded:Connect(function(char)
+		assignPlayerCollisionGroup(char)
+	end)
+end)
 
-	for _, child in ipairs(object:GetChildren()) do
-		setCollisionGroupRecursive(child)
-	end
-end
-
-local function resetCollisionGroup(object)
-	local previousCollisionGroupId = previousCollisionGroups[object]
-	if not previousCollisionGroupId then return end 
-
-	local previousCollisionGroupName = PHYSICS:GetCollisionGroupName(previousCollisionGroupId)
-	if not previousCollisionGroupName then return end
-
-	PHYSICS:SetPartCollisionGroup(object, previousCollisionGroupName)
-	previousCollisionGroups[object] = nil
-end
-
-local function onCharacterAdded(character)
-	setCollisionGroupRecursive(character)
-	-- Thanks :l
-	local playerGui = PLAYERS:GetPlayerFromCharacter(character):WaitForChild("PlayerGui")
-	if not playerGui:WaitForChild('MainGui',5) then
-		game.StarterGui.MainGui:Clone().Parent = playerGui
-	end
-
-	character.DescendantAdded:Connect(setCollisionGroup)
-	character.DescendantRemoving:Connect(resetCollisionGroup)
-end
-
-local function onPlayerAdded(player)
-	EVENT_DEBOUNCES[player] = os.time()
-	FUNCTION_DEBOUNCES[player] = os.time()
-	player.CharacterAdded:Connect(onCharacterAdded)
-end
-
-PLAYERS.PlayerAdded:Connect(onPlayerAdded)
-
-for i,v in pairs(PLAYERS:GetPlayers()) do
-	onPlayerAdded(v)
-	v:LoadCharacter()
+for i, plr in pairs (PLAYERS:GetChildren()) do
+	local char = plr.Character
+	assignPlayerCollisionGroup(char)
 end
 
 local chatService = require(SERVER_SCRIPT_SERVICE:WaitForChild("ChatServiceRunner"):WaitForChild("ChatService"))
