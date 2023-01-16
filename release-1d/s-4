@@ -169,14 +169,13 @@ function assignPlayerCollisionGroup(char)
 end
 
 PLAYERS.PlayerAdded:Connect(function(plr)
-	plr.CharacterAppearanceLoaded:Connect(function(char)
-		assignPlayerCollisionGroup(char)
-	end)
+	EVENT_DEBOUNCES[player] = os.time()
+	FUNCTION_DEBOUNCES[player] = os.time()
+	plr.CharacterAppearanceLoaded:Connect(assignPlayerCollisionGroup)
 end)
 
 for i, plr in pairs (PLAYERS:GetChildren()) do
-	local char = plr.Character
-	assignPlayerCollisionGroup(char)
+	assignPlayerCollisionGroup(plr.Char)
 	plr:LoadCharacter()
 end
 
